@@ -350,9 +350,21 @@ def api_analyze_frame():
         key = resolve_api_key(data.get("api_key", ""))
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)})
-    with frame_lock: frame = latest_frame
-    if not frame:
-        return jsonify({"ok": False, "msg": "No frame — start camera first"})
+
+    # Accept frame from browser (base64) or server camera
+    frame_b64 = data.get("frame")
+    if frame_b64:
+        # Browser sent a base64 frame
+        try:
+            frame = base64.b64decode(frame_b64)
+        except Exception as e:
+            return jsonify({"ok": False, "msg": f"Invalid frame: {e}"})
+    else:
+        # Fall back to server camera frame
+        with frame_lock: frame = latest_frame
+        if not frame:
+            return jsonify({"ok": False, "msg": "No frame — start camera first"})
+
     try:
         result   = call_gemini_vision(key, frame)
         state["frames_analyzed"] += 1
