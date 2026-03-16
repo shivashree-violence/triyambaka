@@ -909,9 +909,16 @@ async function sendEmailAlert(result) {
 async function testEmail() {
   const s = getEmailSettings();
   if (!s.smtp_user || !s.smtp_pass) { toast('Fill SMTP settings first', 'w'); return; }
+  if (!s.alert_email) { toast('Fill Alert Recipient Email first', 'w'); return; }
   toast('Sending test email...', 'info');
-  const res = await post('/api/alert/email', { settings:s });
-  res.ok ? toast('Test email sent! Check inbox ✓', 's') : toast('Email error: '+res.msg, 'd');
+  const res = await post('/api/alert/email', { settings: s });
+  if (res.ok) {
+    toast('✓ ' + res.msg, 's');
+    addLog('log-full', res.msg, 'safe');
+  } else {
+    toast('✗ ' + res.msg, 'd');
+    addLog('log-full', 'Email error: ' + res.msg, 'danger');
+  }
 }
 
 // ─── STATUS POLLER ────────────────────────────────
