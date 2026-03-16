@@ -1,1 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="description" content="TRIYAMBAKA — The Three-Eyed AI Surveillance System. Free real-time violence detection using Google Gemini Vision AI. Named after the all-seeing third eye of Lord Shiva."/>
+<meta name="keywords" content="triyambaka, violence detection, AI surveillance, real-time, webcam, CCTV, safety, security, free, Shiva third eye"/>
+<title>TRIYAMBAKA — The Three-Eyed AI Surveillance System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#060a0f;--surface:#0d1117;--surface2:#111820;
+  --border:#1c2a38;--accent:#00e5ff;--danger:#ff2d2d;
+  --warn:#ff9800;--safe:#00e676;--text:#c8d8e8;--muted:#4a6070;
+  --font-mono:'Share Tech Mono',monospace;
+  --font-head:'Barlow Condensed',sans-serif;
+  --font-body:'Barlow',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.012) 2px,rgba(0,229,255,.012) 4px);pointer-events:none;z-index:9000}
 
+/* HEADER */
+header{position:sticky;top:0;z-index:500;display:flex;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid var(--border);background:rgba(6,10,15,.97);backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-mark{width:38px;height:38px;border:2px solid var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;animation:border-pulse 3s infinite}
+.logo-mark svg{stroke:var(--accent)}
+.logo-name{font-family:var(--font-head);font-size:24px;font-weight:900;letter-spacing:4px;color:#fff}
+.logo-name em{color:var(--accent);font-style:normal}
+.header-right{display:flex;align-items:center;gap:16px;font-family:var(--font-mono);font-size:12px}
+.sys-pill{display:flex;align-items:center;gap:7px;padding:5px 14px;border:1px solid var(--border);border-radius:20px;background:var(--surface)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--safe);box-shadow:0 0 8px var(--safe);animation:dot-blink 2s infinite}
+.dot.alert{background:var(--danger);box-shadow:0 0 12px var(--danger);animation:dot-blink .4s infinite}
+#clock{color:var(--accent);letter-spacing:2px}
+.free-badge{background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.3);color:var(--safe);padding:4px 12px;border-radius:20px;font-size:11px;font-family:var(--font-mono)}
+
+@keyframes border-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.4)}50%{box-shadow:0 0 0 8px rgba(0,229,255,0)}}
+@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ALERT BANNER */
+#alert-banner{display:none;align-items:center;gap:14px;padding:12px 28px;background:linear-gradient(90deg,rgba(255,45,45,.18),rgba(255,45,45,.04));border-bottom:1px solid var(--danger);font-family:var(--font-mono);font-size:13px;color:#ff8080;animation:banner-flash 1s infinite}
+#alert-banner.show{display:flex}
+@keyframes banner-flash{0%,100%{border-bottom-color:var(--danger)}50%{border-bottom-color:rgba(255,45,45,.2)}}
+
+/* LAYOUT */
+.page{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 57px)}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;gap:2px}
+.nav-section{padding:8px 20px 4px;font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:14px;color:var(--muted);transition:all .2s;border-left:3px solid transparent}
+.nav-item:hover{color:var(--text);background:rgba(0,229,255,.04)}
+.nav-item.active{color:var(--accent);background:rgba(0,229,255,.07);border-left-color:var(--accent)}
+.sidebar-bottom{margin-top:auto;padding:16px;border-top:1px solid var(--border)}
+.mini-stat{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #1c2a38}
+.mini-stat:last-child{border:none}
+.mk{color:var(--muted);font-family:var(--font-mono)}.mv{color:var(--accent);font-family:var(--font-mono);font-weight:bold}
+.mv.red{color:var(--danger)}
+
+/* MAIN */
+.main{padding:24px;overflow-y:auto;background:var(--bg)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* PANEL */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:18px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border);background:rgba(0,229,255,.025)}
+.pt{font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase}
+.pb{padding:18px}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 340px;gap:18px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+
+/* KEY MODE SELECTOR */
+.key-mode{display:flex;gap:8px;margin-bottom:16px}
+.mode-btn{flex:1;padding:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);border-radius:4px;cursor:pointer;font-family:var(--font-mono);font-size:12px;text-align:center;transition:all .2s}
+.mode-btn.active{border-color:var(--accent);background:rgba(0,229,255,.08);color:var(--accent)}
+.mode-section{display:none}.mode-section.show{display:block}
+
+/* VIDEO FEED */
+.feed-wrap{position:relative;background:#000;border-radius:5px;overflow:hidden;aspect-ratio:16/9;width:100%}
+.feed-wrap img,.feed-wrap video{width:100%;height:100%;object-fit:contain;display:block}
+.feed-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(6,10,15,.9)}
+.feed-ph .bi{font-size:52px;opacity:.35}
+.feed-ph p{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.feed-wrap::before,.feed-wrap::after,.cbr,.cbl{content:'';position:absolute;width:22px;height:22px;z-index:10;pointer-events:none}
+.feed-wrap::before{top:8px;left:8px;border-top:2px solid var(--accent);border-left:2px solid var(--accent)}
+.feed-wrap::after{top:8px;right:8px;border-top:2px solid var(--accent);border-right:2px solid var(--accent)}
+.cbr{bottom:8px;right:8px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent)}
+.cbl{bottom:8px;left:8px;border-bottom:2px solid var(--accent);border-left:2px solid var(--accent)}
+.feed-wrap.alert-mode::before,.feed-wrap.alert-mode::after,.feed-wrap.alert-mode .cbr,.feed-wrap.alert-mode .cbl{border-color:var(--danger);animation:cf .5s infinite}
+@keyframes cf{0%,100%{opacity:1}50%{opacity:.1}}
+.scan-beam{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 2.5s linear infinite;z-index:5;box-shadow:0 0 10px var(--accent);display:none}
+@keyframes scan{0%{top:0}100%{top:100%}}
+.scanning .scan-beam{display:block}
+
+/* METER */
+.meter{margin:14px 0}
+.meter-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.ml{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.mv2{font-family:var(--font-head);font-size:22px;font-weight:900;color:var(--accent)}
+.mt{height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;border:1px solid var(--border)}
+.mf{height:100%;width:0%;border-radius:5px;background:linear-gradient(90deg,var(--safe),var(--warn) 60%,var(--danger));transition:width .6s ease,filter .3s}
+.mf.hot{filter:drop-shadow(0 0 8px var(--danger))}
+
+/* LOG */
+.log-box{height:220px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:10px;font-family:var(--font-mono);font-size:11px;line-height:1.9}
+.log-box::-webkit-scrollbar{width:4px}.log-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.le{display:flex;gap:12px}.lt{color:var(--muted);min-width:64px}
+.lm.info{color:var(--text)}.lm.safe{color:var(--safe)}.lm.warn{color:var(--warn)}.lm.danger{color:var(--danger);font-weight:bold}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border:1px solid var(--accent);background:rgba(0,229,255,.07);color:var(--accent);border-radius:4px;cursor:pointer;font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s;white-space:nowrap}
+.btn:hover{background:rgba(0,229,255,.16);box-shadow:0 0 18px rgba(0,229,255,.22)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.red{border-color:var(--danger);background:rgba(255,45,45,.09);color:var(--danger)}
+.btn.red:hover{background:rgba(255,45,45,.2)}
+.btn.green{border-color:var(--safe);background:rgba(0,230,118,.08);color:var(--safe)}
+.btn.green:hover{background:rgba(0,230,118,.18)}
+.btn.sm{padding:6px 14px;font-size:11px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+/* INPUTS */
+input[type=text],input[type=email],input[type=password],input[type=number],select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:4px;font-family:var(--font-mono);font-size:13px;width:100%;outline:none;transition:border .2s}
+input:focus,select:focus{border-color:var(--accent)}
+.fg{margin-bottom:13px}
+.fl{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;display:block}
+.fh{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--font-mono)}
+.toggle{width:44px;height:24px;appearance:none;background:var(--border);border-radius:12px;cursor:pointer;transition:background .2s;position:relative}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:all .2s}
+.toggle:checked{background:rgba(0,229,255,.3)}
+.toggle:checked::after{left:23px;background:var(--accent)}
+input[type=range]{accent-color:var(--accent);width:100%}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border);border-radius:8px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(0,229,255,.04)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.up-icon{font-size:42px;margin-bottom:10px}
+
+/* RESULT */
+.result-card{border:1px solid var(--border);border-radius:6px;padding:16px;background:var(--surface2);margin-top:14px;display:none}
+.result-card.show{display:block}
+.result-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.badge{padding:4px 14px;border-radius:3px;font-family:var(--font-mono);font-size:12px;font-weight:bold;letter-spacing:2px}
+.badge.safe{background:rgba(0,230,118,.12);color:var(--safe);border:1px solid var(--safe)}
+.badge.danger{background:rgba(255,45,45,.12);color:var(--danger);border:1px solid var(--danger);animation:dot-blink .9s infinite}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.tag{font-family:var(--font-mono);font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);color:var(--accent)}
+.tag.dt{background:rgba(255,45,45,.07);border-color:rgba(255,45,45,.25);color:#ff8080}
+
+/* PROGRESS */
+.prog-wrap{margin-top:12px;display:none}.prog-wrap.show{display:block}
+.prog-track{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),#00b4cc);width:0%;transition:width .3s;box-shadow:0 0 6px var(--accent)}
+.prog-txt{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:5px}
+
+/* SETTING ROW */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border:none}
+.sk{font-size:14px}.sd{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* CHIP */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-family:var(--font-mono);font-size:11px}
+.chip.online{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--safe)}
+.chip.offline{background:rgba(74,96,112,.1);border:1px solid var(--border);color:var(--muted)}
+
+/* STATUS BOX */
+#key-status{margin-top:10px;font-family:var(--font-mono);font-size:12px;padding:8px 12px;border-radius:4px;display:none}
+
+/* INFO BOX */
+.info-box{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:4px;padding:14px;font-size:13px;line-height:1.8;margin-bottom:16px}
+.info-box.green{border-left-color:var(--safe)}
+.code-box{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;font-family:var(--font-mono);font-size:11px;color:var(--muted);line-height:2;margin-top:14px}
+
+/* TOASTS */
+#toasts{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);padding:13px 18px;border-radius:6px;font-size:13px;max-width:320px;animation:toast-in .3s ease;box-shadow:0 4px 24px rgba(0,0,0,.5);pointer-events:all}
+.toast.td{border-left-color:var(--danger)}.toast.ts{border-left-color:var(--safe)}.toast.tw{border-left-color:var(--warn)}
+@keyframes toast-in{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+@media(max-width:900px){.page{grid-template-columns:1fr}.sidebar{display:none}.g2{grid-template-columns:1fr}.g3{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2">
+        <ellipse cx="12" cy="12" rx="10" ry="6"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" style="fill:var(--accent)"/>
+        <line x1="12" y1="2" x2="12" y2="6"/>
+        <line x1="12" y1="18" x2="12" y2="22"/>
+      </svg>
+    </div>
+    <div>
+      <span class="logo-name">TRIYAM<em>BAKA</em></span>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-top:-2px">THE THREE-EYED AI</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="free-badge">🔱 FREE & OPEN</span>
+    <div class="sys-pill">
+      <div class="dot" id="sys-dot"></div>
+      <span id="sys-label" style="color:var(--safe)">SYSTEM ONLINE</span>
+    </div>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<div id="alert-banner">
+  <span style="font-size:20px">⚠</span>
+  <span id="banner-text">VIOLENCE DETECTED</span>
+  <button class="btn red sm" onclick="dismissAlert()">DISMISS</button>
+</div>
+
+<div class="page">
+  <aside class="sidebar">
+    <div class="nav-section">Detection</div>
+    <div class="nav-item active" onclick="showTab('live',this)"><span>📷</span> Live Monitor</div>
+    <div class="nav-item" onclick="showTab('upload',this)"><span>📁</span> File Analysis</div>
+    <div class="nav-section" style="margin-top:8px">System</div>
+    <div class="nav-item" onclick="showTab('settings',this)"><span>⚙</span> Settings</div>
+    <div class="nav-item" onclick="showTab('logs',this)"><span>📋</span> Full Logs</div>
+    <div class="nav-item" onclick="showTab('about',this)"><span>ℹ</span> About</div>
+    <div class="sidebar-bottom">
+      <div class="mini-stat"><span class="mk">Analyzed</span><span class="mv" id="sb-analyzed">0</span></div>
+      <div class="mini-stat"><span class="mk">Alerts</span><span class="mv red" id="sb-alerts">0</span></div>
+      <div class="mini-stat"><span class="mk">Uptime</span><span class="mv" id="sb-uptime">00:00</span></div>
+      <div class="mini-stat"><span class="mk">Camera</span><span class="mv" id="sb-cam">OFF</span></div>
+      <div class="mini-stat"><span class="mk">AI Model</span><span class="mv" style="font-size:10px">Gemini Flash</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ── LIVE ── -->
+    <div class="tab-content active" id="tab-live">
+      <div class="g2">
+        <div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Live Camera Feed</span><span class="chip offline" id="cam-chip">● OFFLINE</span></div>
+            <div class="pb">
+              <div class="feed-wrap" id="feed-wrap">
+                <img id="feed-img" src="" alt="" style="display:none"/>
+                <div class="scan-beam"></div>
+                <div class="cbr"></div><div class="cbl"></div>
+                <div class="feed-ph" id="feed-ph">
+                  <div class="bi">📷</div>
+                  <p>Camera not started</p>
+                  <p style="font-size:11px;margin-top:4px">Click START CAMERA below</p>
+                </div>
+              </div>
+              <div class="meter">
+                <div class="meter-row"><span class="ml">Threat Level</span><span class="mv2" id="live-pct">0%</span></div>
+                <div class="mt"><div class="mf" id="live-fill"></div></div>
+              </div>
+              <div class="fg">
+                <label class="fl">Camera Source</label>
+                <input type="text" id="cam-source" value="0" placeholder="0 = webcam  |  rtsp://user:pass@ip/stream"/>
+              </div>
+              <div class="btn-row">
+                <button class="btn green" id="btn-start" onclick="startCamera()">▶ Start Camera</button>
+                <button class="btn red" id="btn-stop" onclick="stopCamera()" disabled>■ Stop</button>
+                <button class="btn" id="btn-snap" onclick="analyzeFrame()" disabled>⊕ Analyze Frame</button>
+                <button class="btn" id="btn-auto" onclick="toggleAuto()" disabled>⟳ Auto: OFF</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Last Result</span></div>
+            <div class="pb">
+              <div id="live-result" style="font-family:var(--font-mono);font-size:12px;color:var(--muted)">No analysis yet. Start camera and press Analyze Frame.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Detection Log</span><button class="btn sm" onclick="clearLog()">CLEAR</button></div>
+            <div class="pb" style="padding:12px"><div class="log-box" id="log-live"></div></div>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Auto-Analysis</span></div>
+            <div class="pb">
+              <div class="fg">
+                <label class="fl">Interval (seconds)</label>
+                <input type="number" id="auto-interval" min="2" max="120" value="5"/>
+              </div>
+              <div class="fg">
+                <label class="fl">Threshold: <span id="thr-val" style="color:var(--accent)">60%</span></label>
+                <input type="range" id="threshold" min="20" max="95" value="60" oninput="document.getElementById('thr-val').textContent=this.value+'%'"/>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── UPLOAD ── -->
+    <div class="tab-content" id="tab-upload">
+      <div class="g2">
+        <div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Upload Media</span></div>
+            <div class="pb">
+              <div class="upload-zone" id="uzone"
+                   ondragover="event.preventDefault();this.classList.add('drag')"
+                   ondragleave="this.classList.remove('drag')"
+                   ondrop="handleDrop(event)">
+                <input type="file" id="file-input" accept="image/*,video/*" onchange="handleFile(event)"/>
+                <div class="up-icon">📁</div>
+                <p><strong style="color:var(--text)">Drop image or video here</strong><br/>or click to browse<br/>
+                <span style="font-size:11px">JPG · PNG · GIF · MP4 · WebM · AVI · MOV</span></p>
+              </div>
+              <div id="media-preview" style="display:none;margin-top:16px">
+                <div class="feed-wrap" id="upload-wrap">
+                  <img id="prev-img" style="display:none;width:100%;height:100%;object-fit:contain"/>
+                  <video id="prev-vid" controls style="display:none;width:100%;height:100%;background:#000"></video>
+                  <div class="cbr"></div><div class="cbl"></div>
+                </div>
+                <div id="prog-wrap" class="prog-wrap">
+                  <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+                  <div class="prog-txt" id="prog-txt">Analyzing...</div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn" id="btn-analyze-up" onclick="analyzeUpload()">⊕ Analyze for Violence</button>
+                  <button class="btn red sm" onclick="clearUpload()">✕ Clear</button>
+                </div>
+              </div>
+              <div class="result-card" id="up-result">
+                <div class="result-top">
+                  <span class="badge" id="up-badge">--</span>
+                  <span style="font-family:var(--font-mono);font-size:12px;color:var(--muted)" id="up-conf">--</span>
+                  <span style="font-family:var(--font-mono);font-size:12px;color:var(--warn);margin-left:auto" id="up-threat">--</span>
+                </div>
+                <div style="font-size:13px;line-height:1.7" id="up-detail">--</div>
+                <div class="tags" id="up-tags"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Threat Meter</span></div>
+            <div class="pb">
+              <div class="meter">
+                <div class="meter-row"><span class="ml">Detected Threat</span><span class="mv2" id="up-pct">0%</span></div>
+                <div class="mt"><div class="mf" id="up-fill"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Analysis Log</span></div>
+            <div class="pb" style="padding:12px"><div class="log-box" id="log-upload"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="tab-content" id="tab-settings">
+      <div class="g2">
+        <div>
+          <!-- API KEY MODE -->
+          <div class="panel">
+            <div class="ph"><span class="pt">Gemini API Key</span></div>
+            <div class="pb">
+
+              {% if has_site_key %}
+              <div class="info-box green">
+                ✅ <strong style="color:var(--safe)">Site key is configured</strong> — this website already has a Gemini API key. You can use the app for free without entering your own key!<br/>
+                <span style="font-size:12px;color:var(--muted)">Or enter your own key below to use your personal quota.</span>
+              </div>
+              {% else %}
+              <div class="info-box">
+                ℹ No site key configured. Enter your free Gemini API key below to use the app.
+              </div>
+              {% endif %}
+
+              <div class="key-mode">
+                {% if has_site_key %}
+                <div class="mode-btn active" id="mode-site" onclick="setKeyMode('site')">🌐 Use Site Key (Free)</div>
+                <div class="mode-btn" id="mode-own" onclick="setKeyMode('own')">🔑 Use My Own Key</div>
+                {% else %}
+                <div class="mode-btn active" id="mode-own" onclick="setKeyMode('own')">🔑 Enter My Key</div>
+                {% endif %}
+              </div>
+
+              <div class="mode-section {% if not has_site_key %}show{% endif %}" id="section-own">
+                <div class="fg">
+                  <label class="fl">Your Gemini API Key</label>
+                  <input type="password" id="api-key" placeholder="AIza..." oninput="saveLocal()"/>
+                  <div class="fh">Free at <strong style="color:var(--text)">aistudio.google.com</strong> — no credit card needed</div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn green" onclick="testApiKey()">✓ Test Key</button>
+                  <button class="btn sm" onclick="window.open('https://aistudio.google.com/app/apikey','_blank')">Get Free Key →</button>
+                </div>
+                <div id="key-status"></div>
+              </div>
+
+              {% if has_site_key %}
+              <div class="mode-section show" id="section-site">
+                <div style="font-family:var(--font-mono);font-size:12px;color:var(--safe);padding:12px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);border-radius:4px">
+                  ✓ Using site-wide Gemini key — no setup needed. Start detecting immediately!
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- EMAIL -->
+          <div class="panel">
+            <div class="ph"><span class="pt">Email Alert (SMTP)</span></div>
+            <div class="pb">
+              <div class="fg"><label class="fl">Alert Recipient Email</label><input type="email" id="alert-email" placeholder="security@company.com" oninput="saveLocal()"/></div>
+              <div class="fg"><label class="fl">SMTP Host</label><input type="text" id="smtp-host" value="smtp.gmail.com" oninput="saveLocal()"/></div>
+              <div class="fg"><label class="fl">SMTP Port</label><input type="number" id="smtp-port" value="587" oninput="saveLocal()"/></div>
+              <div class="fg"><label class="fl">SMTP Username</label><input type="email" id="smtp-user" placeholder="your@gmail.com" oninput="saveLocal()"/></div>
+              <div class="fg"><label class="fl">SMTP Password / App Password</label><input type="password" id="smtp-pass" placeholder="Gmail App Password" oninput="saveLocal()"/></div>
+              <div class="fg"><label class="fl">Camera / Location Label</label><input type="text" id="cam-label" value="Camera 01 — Main Entrance" oninput="saveLocal()"/></div>
+              <div class="btn-row">
+                <button class="btn green" onclick="saveSettings()">✓ Save</button>
+                <button class="btn" onclick="testEmail()">✉ Test Email</button>
+              </div>
+              <div class="code-box">
+                <strong style="color:var(--accent)">Gmail App Password:</strong><br/>
+                1. Enable 2FA on Google account<br/>
+                2. Google Account → Security → App Passwords<br/>
+                3. Generate password for "Mail"<br/>
+                4. Use smtp.gmail.com port 587
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel">
+            <div class="ph"><span class="pt">Detection Settings</span></div>
+            <div class="pb">
+              <div class="setting-row">
+                <div><div class="sk">Siren Sound</div><div class="sd">Play alarm on detection</div></div>
+                <input type="checkbox" class="toggle" id="siren-on" checked/>
+              </div>
+              <div class="setting-row">
+                <div><div class="sk">Email Notifications</div><div class="sd">Send SMTP alert</div></div>
+                <input type="checkbox" class="toggle" id="email-on" checked/>
+              </div>
+              <div class="setting-row">
+                <div><div class="sk">Cooldown (seconds)</div><div class="sd">Min time between alerts</div></div>
+                <input type="number" id="cooldown" min="5" max="600" value="30" style="width:80px;text-align:center"/>
+              </div>
+              <div class="setting-row">
+                <div><div class="sk">Snapshot in Email</div><div class="sd">Attach camera frame</div></div>
+                <input type="checkbox" class="toggle" id="snap-on" checked/>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph"><span class="pt">System Info</span></div>
+            <div class="pb" style="font-family:var(--font-mono);font-size:12px;line-height:2.2;color:var(--muted)">
+              <div>Backend: <span style="color:var(--text)">Python Flask + OpenCV</span></div>
+              <div>AI Model: <span style="color:var(--text)">Google Gemini 1.5 Flash</span></div>
+              <div>Video: <span style="color:var(--text)">OpenCV MJPEG Stream</span></div>
+              <div>Email: <span style="color:var(--text)">Python smtplib SMTP/TLS</span></div>
+              <div>Siren: <span style="color:var(--text)">Web Audio API</span></div>
+              <div>Cost: <span style="color:var(--safe)">100% Free</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOGS ── -->
+    <div class="tab-content" id="tab-logs">
+      <div class="panel">
+        <div class="ph"><span class="pt">Full System Log</span><button class="btn sm" onclick="document.getElementById('log-full').innerHTML=''">CLEAR</button></div>
+        <div class="pb" style="padding:12px"><div class="log-box" id="log-full" style="height:500px"></div></div>
+      </div>
+    </div>
+
+    <!-- ── ABOUT ── -->
+    <div class="tab-content" id="tab-about">
+      <div class="panel">
+        <div class="ph"><span class="pt">About TRIYAMBAKA</span></div>
+        <div class="pb">
+          <div style="max-width:700px;line-height:1.9;font-size:14px">
+            <h2 style="font-family:var(--font-head);font-size:28px;color:var(--accent);letter-spacing:3px;margin-bottom:6px">TRIYAMBAKA</h2>
+            <p style="font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:3px;margin-bottom:16px">THE THREE-EYED AI SURVEILLANCE SYSTEM</p>
+            <p style="margin-bottom:12px">TRIYAMBAKA is named after the three-eyed form of Lord Shiva — the all-seeing divine eye that misses nothing. Just as Shiva's third eye sees all threats and destroys evil, TRIYAMBAKA uses AI vision to detect violence in real-time surveillance feeds.</p>
+            <p style="margin-bottom:12px">It is a free, open-access AI-powered violence detection system that analyzes live camera feeds, uploaded videos, and images for signs of violence or threatening behavior using Google Gemini Vision AI.</p>
+            <p style="margin-bottom:20px;color:var(--muted)">Built as a college final year project using Python, Flask, OpenCV, and Google Gemini Vision API.</p>
+
+            <h3 style="font-family:var(--font-head);color:var(--accent);letter-spacing:2px;margin-bottom:10px">TECHNOLOGIES USED</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px">
+                <div style="color:var(--accent);font-family:var(--font-mono);font-size:11px;margin-bottom:4px">BACKEND</div>
+                <div style="font-size:13px">Python 3, Flask, OpenCV, PIL</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px">
+                <div style="color:var(--accent);font-family:var(--font-mono);font-size:11px;margin-bottom:4px">AI ENGINE</div>
+                <div style="font-size:13px">Google Gemini 1.5 Flash Vision</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px">
+                <div style="color:var(--accent);font-family:var(--font-mono);font-size:11px;margin-bottom:4px">VIDEO STREAM</div>
+                <div style="font-size:13px">OpenCV MJPEG over HTTP</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px">
+                <div style="color:var(--accent);font-family:var(--font-mono);font-size:11px;margin-bottom:4px">ALERTS</div>
+                <div style="font-size:13px">SMTP Email + Web Audio Siren</div>
+              </div>
+            </div>
+
+            <h3 style="font-family:var(--font-head);color:var(--accent);letter-spacing:2px;margin-bottom:10px">DETECTION CATEGORIES</h3>
+            <div class="tags" style="margin-bottom:20px">
+              <span class="tag">Physical Assault</span><span class="tag">Weapon Visible</span>
+              <span class="tag">Crowd Aggression</span><span class="tag">Property Destruction</span>
+              <span class="tag">Threatening Behavior</span><span class="tag">Self Harm</span>
+              <span class="tag">Armed Robbery</span><span class="tag">Domestic Violence</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────
+let autoMode   = false;
+let keyMode    = '{{ "site" if has_site_key else "own" }}';
+let currentFile = null;
+let sirenCtx   = null;
+let pollerTimer = null;
+let lastLogCount = 0;
+
+// ─── INIT ─────────────────────────────────────────
+loadLocal();
+startPoller();
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB');
+}, 1000);
+addLog('log-live', 'TRIYAMBAKA initialized. Powered by Google Gemini Vision AI.', 'info');
+addLog('log-upload', 'Upload a file to analyze.', 'info');
+
+// ─── KEY MODE ─────────────────────────────────────
+function setKeyMode(mode) {
+  keyMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mode-section').forEach(s => s.classList.remove('show'));
+  const btn = document.getElementById('mode-' + mode);
+  if (btn) btn.classList.add('active');
+  const sec = document.getElementById('section-' + mode);
+  if (sec) sec.classList.add('show');
+}
+
+function getApiKey() {
+  if (keyMode === 'site') return '';   // backend uses site key
+  return v('api-key');
+}
+
+// ─── LOCAL STORAGE ────────────────────────────────
+function loadLocal() {
+  const s = JSON.parse(localStorage.getItem('vg') || '{}');
+  const map = {'api-key':'ak','alert-email':'ae','smtp-host':'sh','smtp-port':'sp','smtp-user':'su','smtp-pass':'ss','cam-label':'cl'};
+  for (const [id, k] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el && s[k]) el.value = s[k];
+  }
+}
+function saveLocal() {
+  localStorage.setItem('vg', JSON.stringify({
+    ak: v('api-key'), ae: v('alert-email'), sh: v('smtp-host'),
+    sp: v('smtp-port'), su: v('smtp-user'), ss: v('smtp-pass'), cl: v('cam-label')
+  }));
+}
+function saveSettings() { saveLocal(); toast('Settings saved ✓', 's'); }
+
+// ─── TABS ─────────────────────────────────────────
+function showTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+// ─── LOG ──────────────────────────────────────────
+function addLog(logId, msg, level = 'info') {
+  const el = document.getElementById(logId);
+  if (!el) return;
+  const d = document.createElement('div');
+  d.className = 'le';
+  d.innerHTML = `<span class="lt">${new Date().toLocaleTimeString('en-GB')}</span><span class="lm ${level}">${msg}</span>`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() {
+  ['log-live','log-upload','log-full'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML=''; });
+  toast('Logs cleared', 'info');
+}
+
+// ─── TEST API KEY ─────────────────────────────────
+async function testApiKey() {
+  const key = v('api-key');
+  if (!key) { toast('Enter a key first', 'w'); return; }
+  const el = document.getElementById('key-status');
+  el.style.display = 'block';
+  el.style.color = 'var(--muted)';
+  el.style.background = 'var(--surface2)';
+  el.style.border = '1px solid var(--border)';
+  el.textContent = '⟳ Testing...';
+  const res = await post('/api/test_key', { api_key: key });
+  if (res.ok) {
+    el.style.color = 'var(--safe)';
+    el.textContent = '✓ ' + res.msg;
+    toast('Key works! ✓', 's');
+    saveLocal();
+  } else {
+    el.style.color = 'var(--danger)';
+    el.textContent = '✗ ' + res.msg;
+    toast('Key error: ' + res.msg, 'd');
+  }
+}
+
+// ─── CAMERA ──────────────────────────────────────
+async function startCamera() {
+  const source = v('cam-source') || '0';
+  const res = await post('/api/camera/start', { source });
+  if (!res.ok) { toast(res.msg, 'd'); addLog('log-live', res.msg, 'danger'); return; }
+  document.getElementById('feed-ph').style.display = 'none';
+  document.getElementById('feed-img').style.display = 'block';
+  document.getElementById('feed-img').src = '/video_feed?' + Date.now();
+  document.getElementById('feed-wrap').classList.add('scanning');
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('btn-snap').disabled = false;
+  document.getElementById('btn-auto').disabled = false;
+  document.getElementById('cam-chip').className = 'chip online';
+  document.getElementById('cam-chip').textContent = '● LIVE';
+  addLog('log-live', `Camera started (source=${source})`, 'safe');
+  toast('Camera connected ✓', 's');
+}
+
+async function stopCamera() {
+  stopAutoMode();
+  await post('/api/camera/stop');
+  document.getElementById('feed-img').src = '';
+  document.getElementById('feed-img').style.display = 'none';
+  document.getElementById('feed-ph').style.display = 'flex';
+  document.getElementById('feed-wrap').classList.remove('scanning', 'alert-mode');
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('btn-snap').disabled = true;
+  document.getElementById('btn-auto').disabled = true;
+  document.getElementById('cam-chip').className = 'chip offline';
+  document.getElementById('cam-chip').textContent = '● OFFLINE';
+  addLog('log-live', 'Camera stopped.', 'warn');
+}
+
+// ─── AUTO MODE ────────────────────────────────────
+async function toggleAuto() {
+  autoMode = !autoMode;
+  const btn = document.getElementById('btn-auto');
+  if (autoMode) {
+    const interval  = parseInt(v('auto-interval')) || 5;
+    const threshold = parseInt(document.getElementById('threshold').value) || 60;
+    const res = await post('/api/auto/start', {
+      api_key: getApiKey(), interval, threshold, settings: getEmailSettings()
+    });
+    if (!res.ok) { autoMode = false; toast(res.msg, 'd'); return; }
+    btn.textContent = '⟳ Auto: ON';
+    btn.style.borderColor = 'var(--safe)';
+    btn.style.color = 'var(--safe)';
+    addLog('log-live', `Auto ON — every ${interval}s`, 'safe');
+    toast(`Auto-analysis every ${interval}s`, 's');
+  } else {
+    stopAutoMode();
+  }
+}
+async function stopAutoMode() {
+  autoMode = false;
+  await post('/api/auto/stop');
+  const btn = document.getElementById('btn-auto');
+  btn.textContent = '⟳ Auto: OFF';
+  btn.style.borderColor = '';
+  btn.style.color = '';
+}
+
+// ─── ANALYZE FRAME ────────────────────────────────
+async function analyzeFrame() {
+  addLog('log-live', 'Analyzing frame...', 'info');
+  document.getElementById('live-result').innerHTML = '<span style="color:var(--muted);font-family:var(--font-mono);font-size:12px">⟳ Analyzing...</span>';
+  const res = await post('/api/analyze/frame', { api_key: getApiKey() });
+  if (!res.ok) { addLog('log-live', 'Error: ' + res.msg, 'danger'); toast(res.msg, 'd'); return; }
+  renderLiveResult(res.result);
+  maybeAlert(res.result);
+}
+
+function renderLiveResult(r) {
+  const det  = r.violence_detected;
+  const conf = r.confidence || 0;
+  const col  = det ? 'var(--danger)' : 'var(--safe)';
+  updateMeter('live-fill', 'live-pct', conf);
+  document.getElementById('live-result').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:22px">${det ? '⚠' : '✓'}</span>
+      <span style="font-family:var(--font-head);font-size:20px;font-weight:900;color:${col};letter-spacing:2px">${det ? 'VIOLENCE DETECTED' : 'NO THREAT'}</span>
+    </div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:8px">
+      Confidence: <span style="color:${col}">${conf}%</span> &nbsp;|&nbsp;
+      Threat: <span style="color:${col}">${(r.threat_level||'').toUpperCase()}</span>
+    </div>
+    <div style="font-size:13px;line-height:1.7">${r.description || ''}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">${r.details || ''}</div>
+    <div class="tags" style="margin-top:10px">${(r.categories||[]).map(c=>`<span class="tag ${det?'dt':''}">${c.replace(/_/g,' ')}</span>`).join('')}</div>`;
+  document.getElementById('feed-wrap').classList.toggle('alert-mode', det && conf >= parseInt(document.getElementById('threshold').value));
+  addLog('log-live', det ? `⚠ VIOLENCE ${conf}% — ${r.description}` : `✓ Clear (${conf}%) — ${r.description}`, det ? 'danger' : 'safe');
+}
+
+// ─── UPLOAD ──────────────────────────────────────
+function handleDrop(e) { e.preventDefault(); document.getElementById('uzone').classList.remove('drag'); loadFile(e.dataTransfer.files[0]); }
+function handleFile(e) { loadFile(e.target.files[0]); }
+function loadFile(file) {
+  if (!file) return;
+  currentFile = file;
+  document.getElementById('media-preview').style.display = 'block';
+  document.getElementById('up-result').classList.remove('show');
+  const isVid = file.type.startsWith('video/');
+  const img = document.getElementById('prev-img'), vid = document.getElementById('prev-vid');
+  if (isVid) { img.style.display='none'; vid.style.display='block'; vid.src=URL.createObjectURL(file); }
+  else { vid.style.display='none'; img.style.display='block'; img.src=URL.createObjectURL(file); }
+  addLog('log-upload', `Loaded: ${file.name} (${(file.size/1048576).toFixed(1)} MB)`, 'info');
+}
+function clearUpload() {
+  currentFile = null;
+  document.getElementById('media-preview').style.display = 'none';
+  document.getElementById('up-result').classList.remove('show');
+  document.getElementById('file-input').value = '';
+}
+
+async function analyzeUpload() {
+  if (!currentFile) { toast('No file selected', 'w'); return; }
+  document.getElementById('btn-analyze-up').disabled = true;
+  const prog = document.getElementById('prog-wrap');
+  const fill = document.getElementById('prog-fill');
+  const txt  = document.getElementById('prog-txt');
+  prog.classList.add('show');
+  let p = 0;
+  const stages = ['Reading file...','Preprocessing image...','Running AI detection...','Classifying threat...'];
+  const timer = setInterval(() => { p = Math.min(p + Math.random()*9, 88); fill.style.width=p+'%'; txt.textContent=stages[Math.floor(p/25)]||'Finalizing...'; }, 220);
+  const fd = new FormData();
+  fd.append('api_key', getApiKey());
+  fd.append('file', currentFile);
+  try {
+    const resp = await fetch('/api/analyze/upload', { method:'POST', body:fd });
+    const res  = await resp.json();
+    clearInterval(timer); fill.style.width='100%'; txt.textContent='Complete!';
+    setTimeout(() => prog.classList.remove('show'), 1200);
+    if (!res.ok) { toast(res.msg, 'd'); addLog('log-upload', 'Error: '+res.msg, 'danger'); return; }
+    const r = res.result, det = r.violence_detected, conf = r.confidence||0;
+    updateMeter('up-fill', 'up-pct', conf);
+    const upRes = document.getElementById('up-result'); upRes.classList.add('show');
+    const badge = document.getElementById('up-badge');
+    badge.textContent = det ? '⚠ VIOLENCE DETECTED' : '✓ NO THREAT';
+    badge.className   = 'badge ' + (det ? 'danger' : 'safe');
+    document.getElementById('up-conf').textContent   = `Confidence: ${conf}%`;
+    document.getElementById('up-threat').textContent = `Threat: ${(r.threat_level||'').toUpperCase()}`;
+    document.getElementById('up-detail').textContent = (r.details||'') + '\n' + (r.description||'');
+    document.getElementById('up-tags').innerHTML = (r.categories||[]).map(c=>`<span class="tag ${det?'dt':''}">${c.replace(/_/g,' ')}</span>`).join('');
+    document.getElementById('upload-wrap').classList.toggle('alert-mode', det && conf >= parseInt(document.getElementById('threshold').value));
+    addLog('log-upload', det ? `⚠ VIOLENCE ${conf}% — ${r.description}` : `✓ Clear (${conf}%) — ${r.description}`, det ? 'danger' : 'safe');
+    maybeAlert(r);
+  } catch(e) {
+    clearInterval(timer); prog.classList.remove('show'); toast('Error: '+e.message, 'd');
+  }
+  document.getElementById('btn-analyze-up').disabled = false;
+}
+
+// ─── ALERT ────────────────────────────────────────
+let lastAlertTs = 0;
+// ─── AUDIO UNLOCK (Safari/Chrome require user gesture) ───────────────────────
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    ctx.resume().then(() => { audioUnlocked = true; ctx.close(); });
+  } catch(e) {}
+}
+// Unlock audio on first click anywhere on page
+document.addEventListener('click', unlockAudio, { once: true });
+
+function maybeAlert(r) {
+  const thr = parseInt(document.getElementById('threshold').value) || 60;
+  if (!r.violence_detected || r.confidence < thr) return;
+  const cooldown = (parseInt(v('cooldown')) || 30) * 1000;
+  if (Date.now() - lastAlertTs < cooldown) return;
+  lastAlertTs = Date.now();
+  document.getElementById('alert-banner').classList.add('show');
+  document.getElementById('banner-text').textContent = `⚠ VIOLENCE — ${(r.threat_level||'').toUpperCase()} — ${r.confidence}% — ${r.description}`;
+  document.getElementById('sys-dot').classList.add('alert');
+  document.getElementById('sys-label').textContent = 'ALERT ACTIVE';
+  document.getElementById('sys-label').style.color = 'var(--danger)';
+  toast(`🚨 ${r.description} (${r.confidence}%)`, 'd');
+  if (document.getElementById('siren-on').checked) playSiren();
+  if (document.getElementById('email-on').checked) sendEmailAlert(r);
+}
+
+function dismissAlert() {
+  document.getElementById('alert-banner').classList.remove('show');
+  document.getElementById('sys-dot').classList.remove('alert');
+  document.getElementById('sys-label').textContent = 'SYSTEM ONLINE';
+  document.getElementById('sys-label').style.color = 'var(--safe)';
+  document.querySelectorAll('.feed-wrap').forEach(w => w.classList.remove('alert-mode'));
+  stopSiren();
+}
+
+// ─── SIREN ────────────────────────────────────────
+function playSiren() {
+  stopSiren();
+  try {
+    sirenCtx = new (window.AudioContext || window.webkitAudioContext)();
+    sirenCtx.resume(); // Force resume — fixes Safari autoplay block
+    const times = [0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4];
+    times.forEach(t => {
+      const osc  = sirenCtx.createOscillator();
+      const gain = sirenCtx.createGain();
+      osc.connect(gain);
+      gain.connect(sirenCtx.destination);
+      osc.type = 'sawtooth';
+      const now = sirenCtx.currentTime + t;
+      osc.frequency.setValueAtTime(960, now);
+      osc.frequency.linearRampToValueAtTime(480, now + 0.35);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.38);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    });
+    toast('🔊 Siren playing!', 'd');
+  } catch(e) {
+    toast('⚠ Siren blocked by browser — click page first', 'w');
+  }
+}
+function stopSiren() {
+  if (sirenCtx) { try { sirenCtx.close(); } catch(e){} sirenCtx = null; }
+}
+
+// ─── EMAIL ────────────────────────────────────────
+function getEmailSettings() {
+  return { alert_email:v('alert-email'), smtp_host:v('smtp-host'), smtp_port:v('smtp-port'),
+           smtp_user:v('smtp-user'), smtp_pass:v('smtp-pass'), location:v('cam-label'),
+           email_enabled: document.getElementById('email-on').checked, cooldown:v('cooldown') };
+}
+async function sendEmailAlert(result) {
+  const s = getEmailSettings();
+  if (!s.smtp_user || !s.smtp_pass) { addLog('log-live','Email not configured','warn'); return; }
+  const res = await post('/api/alert/email', { settings:s, result });
+  if (res.ok) toast('Alert email sent ✓', 's');
+}
+async function testEmail() {
+  const s = getEmailSettings();
+  if (!s.smtp_user || !s.smtp_pass) { toast('Fill SMTP settings first', 'w'); return; }
+  toast('Sending test email...', 'info');
+  const res = await post('/api/alert/email', { settings:s });
+  res.ok ? toast('Test email sent! Check inbox ✓', 's') : toast('Email error: '+res.msg, 'd');
+}
+
+// ─── STATUS POLLER ────────────────────────────────
+function startPoller() {
+  if (pollerTimer) clearInterval(pollerTimer);
+  pollerTimer = setInterval(async () => {
+    try {
+      const r = await fetch('/api/status').then(r => r.json());
+      document.getElementById('sb-analyzed').textContent = r.frames_analyzed;
+      document.getElementById('sb-alerts').textContent   = r.alerts_triggered;
+      document.getElementById('sb-uptime').textContent   = r.uptime;
+      document.getElementById('sb-cam').textContent      = r.camera_active ? 'ON' : 'OFF';
+      document.getElementById('sb-cam').style.color      = r.camera_active ? 'var(--safe)' : 'var(--muted)';
+      // Sync new log entries
+      const entries = r.log_entries || [];
+      if (entries.length > lastLogCount) {
+        entries.slice(lastLogCount).forEach(e => addLog('log-full', e.msg, e.level));
+        lastLogCount = entries.length;
+      }
+      if (r.latest_result && autoMode) renderLiveResult(r.latest_result);
+    } catch(e) {}
+  }, 3000);
+}
+
+// ─── UTILS ───────────────────────────────────────
+function updateMeter(fillId, valId, pct) {
+  document.getElementById(fillId).style.width = pct + '%';
+  document.getElementById(fillId).classList.toggle('hot', pct >= 60);
+  document.getElementById(valId).textContent = pct + '%';
+}
+async function post(url, data = {}) {
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+  return r.json();
+}
+function v(id) { return document.getElementById(id)?.value || ''; }
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + ({d:'td',s:'ts',w:'tw'}[type]||'');
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+</script>
+</body>
+</html>
