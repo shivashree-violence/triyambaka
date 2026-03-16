@@ -243,7 +243,8 @@ input[type=range]{accent-color:var(--accent);width:100%}
             <div class="ph"><span class="pt">Live Camera Feed</span><span class="chip offline" id="cam-chip">● OFFLINE</span></div>
             <div class="pb">
               <div class="feed-wrap" id="feed-wrap">
-                <img id="feed-img" src="" alt="" style="display:none"/>
+                <video id="feed-video" autoplay muted playsinline style="display:none;width:100%;height:100%;object-fit:cover"></video>
+                <canvas id="feed-canvas" style="display:none"></canvas>
                 <div class="scan-beam"></div>
                 <div class="cbr"></div><div class="cbl"></div>
                 <div class="feed-ph" id="feed-ph">
@@ -255,10 +256,6 @@ input[type=range]{accent-color:var(--accent);width:100%}
               <div class="meter">
                 <div class="meter-row"><span class="ml">Threat Level</span><span class="mv2" id="live-pct">0%</span></div>
                 <div class="mt"><div class="mf" id="live-fill"></div></div>
-              </div>
-              <div class="fg">
-                <label class="fl">Camera Source</label>
-                <input type="text" id="cam-source" value="0" placeholder="0 = webcam  |  rtsp://user:pass@ip/stream"/>
               </div>
               <div class="btn-row">
                 <button class="btn green" id="btn-start" onclick="startCamera()">▶ Start Camera</button>
@@ -627,29 +624,45 @@ async function testApiKey() {
 }
 
 // ─── CAMERA ──────────────────────────────────────
+// ─── CAMERA (browser-based — works on any device) ─────────────────────────
+let cameraStream = null;
+
 async function startCamera() {
-  const source = v('cam-source') || '0';
-  const res = await post('/api/camera/start', { source });
-  if (!res.ok) { toast(res.msg, 'd'); addLog('log-live', res.msg, 'danger'); return; }
-  document.getElementById('feed-ph').style.display = 'none';
-  document.getElementById('feed-img').style.display = 'block';
-  document.getElementById('feed-img').src = '/video_feed?' + Date.now();
-  document.getElementById('feed-wrap').classList.add('scanning');
-  document.getElementById('btn-start').disabled = true;
-  document.getElementById('btn-stop').disabled = false;
-  document.getElementById('btn-snap').disabled = false;
-  document.getElementById('btn-auto').disabled = false;
-  document.getElementById('cam-chip').className = 'chip online';
-  document.getElementById('cam-chip').textContent = '● LIVE';
-  addLog('log-live', `Camera started (source=${source})`, 'safe');
-  toast('Camera connected ✓', 's');
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'environment' },
+      audio: false
+    });
+    const video = document.getElementById('feed-video');
+    video.srcObject = cameraStream;
+    video.style.display = 'block';
+    document.getElementById('feed-ph').style.display = 'none';
+    document.getElementById('feed-wrap').classList.add('scanning');
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-stop').disabled = false;
+    document.getElementById('btn-snap').disabled = false;
+    document.getElementById('btn-auto').disabled = false;
+    document.getElementById('cam-chip').className = 'chip online';
+    document.getElementById('cam-chip').textContent = '● LIVE';
+    addLog('log-live', 'Camera started (browser webcam)', 'safe');
+    toast('Camera connected ✓', 's');
+    // Notify backend
+    await post('/api/camera/start', { source: 'browser' });
+  } catch(e) {
+    toast('Camera access denied: ' + e.message, 'd');
+    addLog('log-live', 'Camera error: ' + e.message, 'danger');
+  }
 }
 
 async function stopCamera() {
   stopAutoMode();
-  await post('/api/camera/stop');
-  document.getElementById('feed-img').src = '';
-  document.getElementById('feed-img').style.display = 'none';
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('feed-video');
+  video.srcObject = null;
+  video.style.display = 'none';
   document.getElementById('feed-ph').style.display = 'flex';
   document.getElementById('feed-wrap').classList.remove('scanning', 'alert-mode');
   document.getElementById('btn-start').disabled = false;
@@ -659,6 +672,16 @@ async function stopCamera() {
   document.getElementById('cam-chip').className = 'chip offline';
   document.getElementById('cam-chip').textContent = '● OFFLINE';
   addLog('log-live', 'Camera stopped.', 'warn');
+  await post('/api/camera/stop');
+}
+
+function captureFrameBase64() {
+  const video  = document.getElementById('feed-video');
+  const canvas = document.getElementById('feed-canvas');
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 }
 
 // ─── AUTO MODE ────────────────────────────────────
@@ -666,19 +689,34 @@ async function toggleAuto() {
   autoMode = !autoMode;
   const btn = document.getElementById('btn-auto');
   if (autoMode) {
-    const interval  = parseInt(v('auto-interval')) || 5;
+    const interval  = (parseInt(v('auto-interval')) || 5) * 1000;
     const threshold = parseInt(document.getElementById('threshold').value) || 60;
-    const res = await post('/api/auto/start', {
-      api_key: getApiKey(), interval, threshold, settings: getEmailSettings()
-    });
-    if (!res.ok) { autoMode = false; toast(res.msg, 'd'); return; }
     btn.textContent = '⟳ Auto: ON';
     btn.style.borderColor = 'var(--safe)';
     btn.style.color = 'var(--safe)';
-    addLog('log-live', `Auto ON — every ${interval}s`, 'safe');
-    toast(`Auto-analysis every ${interval}s`, 's');
+    addLog('log-live', `Auto ON — every ${interval/1000}s`, 'safe');
+    toast(`Auto-analysis every ${interval/1000}s`, 's');
+    // Run auto loop in browser
+    autoLoop(interval, threshold);
   } else {
     stopAutoMode();
+  }
+}
+
+async function autoLoop(interval, threshold) {
+  while (autoMode && cameraStream) {
+    await new Promise(r => setTimeout(r, interval));
+    if (!autoMode || !cameraStream) break;
+    try {
+      const frameB64 = captureFrameBase64();
+      const res = await post('/api/analyze/frame', { api_key: getApiKey(), frame: frameB64 });
+      if (res.ok) {
+        renderLiveResult(res.result);
+        maybeAlert(res.result);
+      }
+    } catch(e) {
+      addLog('log-live', 'Auto error: ' + e.message, 'danger');
+    }
   }
 }
 async function stopAutoMode() {
@@ -692,9 +730,11 @@ async function stopAutoMode() {
 
 // ─── ANALYZE FRAME ────────────────────────────────
 async function analyzeFrame() {
-  addLog('log-live', 'Analyzing frame...', 'info');
+  if (!cameraStream) { toast('Start camera first', 'w'); return; }
+  addLog('log-live', 'Capturing & analyzing frame...', 'info');
   document.getElementById('live-result').innerHTML = '<span style="color:var(--muted);font-family:var(--font-mono);font-size:12px">⟳ Analyzing...</span>';
-  const res = await post('/api/analyze/frame', { api_key: getApiKey() });
+  const frameB64 = captureFrameBase64();
+  const res = await post('/api/analyze/frame', { api_key: getApiKey(), frame: frameB64 });
   if (!res.ok) { addLog('log-live', 'Error: ' + res.msg, 'danger'); toast(res.msg, 'd'); return; }
   renderLiveResult(res.result);
   maybeAlert(res.result);
