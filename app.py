@@ -127,7 +127,7 @@ DETECTION_PROMPT = (
     '- Be honest about what you see right now, nothing more'
 )
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-2.0-flash-lite"
 
 
 def call_gemini_vision(api_key, image_bytes):
@@ -444,14 +444,66 @@ def api_auto_stop():
 def api_alert_email():
     data     = request.get_json() or {}
     settings = data.get("settings", {})
-    result   = data.get("result", {
+
+    # Validate settings
+    if not settings.get("smtp_user"):
+        return jsonify({"ok": False, "msg": "SMTP username is missing"})
+    if not settings.get("smtp_pass"):
+        return jsonify({"ok": False, "msg": "SMTP password is missing"})
+    if not settings.get("alert_email"):
+        return jsonify({"ok": False, "msg": "Alert email is missing"})
+
+    result = data.get("result", {
         "violence_detected": True, "confidence": 99, "threat_level": "test",
         "categories": ["test_alert"], "description": "Test alert from TRIYAMBAKA",
-        "details": "This is a test email."
+        "details": "This is a test email. Your TRIYAMBAKA system is working correctly."
     })
-    with frame_lock: snap = latest_frame
-    send_email_alert(settings, result, snap)
-    return jsonify({"ok": True, "msg": "Email dispatched"})
+
+    # Send synchronously so we can return errors
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        location  = settings.get("location", "Camera 01")
+        msg       = MIMEMultipart("alternative")
+        msg["Subject"] = f"🔱 TRIYAMBAKA ALERT — {result.get('threat_level','').upper()} — {location}"
+        msg["From"]    = settings["smtp_user"]
+        msg["To"]      = settings["alert_email"]
+
+        html = f"""<html><body style="font-family:Arial,sans-serif;background:#0d1117;color:#c8d8e8;padding:24px">
+<div style="max-width:600px;margin:auto;border:1px solid #1c2a38;border-radius:8px;overflow:hidden">
+  <div style="background:#ff2d2d;padding:20px;text-align:center">
+    <h1 style="color:#fff;margin:0;font-size:26px;letter-spacing:3px">🔱 TRIYAMBAKA ALERT</h1>
+  </div>
+  <div style="padding:24px;background:#111820">
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td style="padding:8px 0;color:#4a6070;width:130px">Timestamp</td><td style="color:#00e5ff">{timestamp}</td></tr>
+      <tr><td style="padding:8px 0;color:#4a6070">Location</td><td style="color:#fff">{location}</td></tr>
+      <tr><td style="padding:8px 0;color:#4a6070">Threat Level</td><td style="color:#ff2d2d;font-weight:bold;text-transform:uppercase">{result.get('threat_level','')}</td></tr>
+      <tr><td style="padding:8px 0;color:#4a6070">Confidence</td><td style="color:#ff9800">{result.get('confidence',0)}%</td></tr>
+      <tr><td style="padding:8px 0;color:#4a6070">Description</td><td style="color:#fff">{result.get('description','')}</td></tr>
+      <tr><td style="padding:8px 0;color:#4a6070;vertical-align:top">Details</td><td style="color:#c8d8e8">{result.get('details','')}</td></tr>
+    </table>
+  </div>
+  <div style="background:#080c10;padding:12px;text-align:center;font-size:11px;color:#4a6070">TRIYAMBAKA — The Three-Eyed AI Surveillance System</div>
+</div></body></html>"""
+
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(settings.get("smtp_host", "smtp.gmail.com"),
+                          int(settings.get("smtp_port", 587))) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.login(settings["smtp_user"], settings["smtp_pass"])
+            srv.sendmail(settings["smtp_user"], settings["alert_email"], msg.as_string())
+
+        add_log(f"Email sent to {settings['alert_email']}", "safe")
+        return jsonify({"ok": True, "msg": f"Email sent to {settings['alert_email']} ✓"})
+
+    except smtplib.SMTPAuthenticationError:
+        return jsonify({"ok": False, "msg": "Authentication failed — check your App Password"})
+    except smtplib.SMTPException as e:
+        return jsonify({"ok": False, "msg": f"SMTP error: {str(e)}"})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"Email error: {str(e)}"})
 
 
 @app.route("/api/status")
