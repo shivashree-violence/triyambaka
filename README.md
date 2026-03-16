@@ -1,63 +1,43 @@
-# VisionGuard — Deployment Guide
+# 🔱 TRIYAMBAKA
+### The Three-Eyed AI Surveillance System
+
+> *Named after the three-eyed form of Lord Shiva — the all-seeing divine eye that misses nothing.*
+
+TRIYAMBAKA is a free, AI-powered real-time violence detection system that uses Google Gemini Vision AI to analyze live camera feeds, uploaded videos, and images for signs of violence or threatening behavior.
+
+## Features
+- 📷 Live webcam / RTSP CCTV camera monitoring
+- 📁 Upload & analyze recorded videos and images
+- 🤖 Google Gemini 1.5 Flash Vision AI detection
+- 🚨 Siren alarm on violence detection
+- 📧 Email alerts with snapshot via SMTP
+- ⟳ Auto-analysis mode
+- 100% Free to use
+
+## Technologies
+- Python 3 + Flask
+- OpenCV (video streaming)
+- Google Gemini 1.5 Flash (AI vision)
+- SMTP (email alerts)
+- Web Audio API (siren)
 
 ## Run Locally
-
 ```bash
 pip install -r requirements.txt
 python app.py
-# Open http://localhost:5000
 ```
+Open http://localhost:5000
 
-## Deploy FREE on Render.com (Public Website)
+## Deploy on Render.com
+1. Fork this repository
+2. Go to render.com → New Web Service
+3. Connect this repo
+4. Add environment variable: `GEMINI_API_KEY=your_key`
+5. Build: `pip install -r requirements.txt`
+6. Start: `gunicorn app:app --workers 2 --threads 4 --timeout 60`
 
-### Step 1 — Get Free Gemini API Key
-1. Go to https://aistudio.google.com
-2. Sign in with Google
-3. Click "Get API Key" → "Create API key"
-4. Copy the key (starts with AIza...)
-
-### Step 2 — Upload to GitHub
-1. Go to github.com → New Repository → name it "visionguard"
-2. Upload all project files
-3. Click "Commit changes"
-
-### Step 3 — Deploy on Render
-1. Go to https://render.com → Sign up free
-2. Click "New +" → "Web Service"
-3. Connect your GitHub → select "visionguard"
-4. Fill in:
-   - Name: visionguard
-   - Runtime: Python 3
-   - Build Command: pip install -r requirements.txt
-   - Start Command: gunicorn app:app --workers 2 --threads 4 --timeout 60
-5. Click "Advanced" → "Add Environment Variable"
-   - Key: GEMINI_API_KEY
-   - Value: your AIza... key
-6. Click "Create Web Service"
-7. Wait 2-3 minutes → your site is live!
-
-### Your public URL will be:
-https://visionguard.onrender.com
-
-### Get on Google Search
-1. Go to https://search.google.com/search-console
-2. Add your Render URL
-3. Submit sitemap
-4. Google will index it within a few days
-
-## Project Structure
-```
-visionguard/
-├── app.py              # Flask backend (Python)
-├── requirements.txt    # Python dependencies  
-├── Procfile            # Render deployment config
-├── .env.example        # Environment variables template
-└── templates/
-    └── index.html      # Frontend (HTML/CSS/JS)
-```
-
-## Technologies
-- Python 3 + Flask — web server
+## About the Name
+TRIYAMBAKA (त्र्यम्बक) is a Sanskrit name for Lord Shiva meaning "The Three-Eyed One". Just as Shiva's third eye sees all threats and destroys evil, TRIYAMBAKA uses AI vision to detect violence and protect people.
 - OpenCV — camera streaming & video processing
 - Google Gemini 1.5 Flash — AI vision analysis
 - PIL/Pillow — image processing
