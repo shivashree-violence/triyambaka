@@ -7,6 +7,7 @@
 <meta name="keywords" content="triyambaka, violence detection, AI surveillance, real-time, webcam, CCTV, safety, security, free, Shiva third eye"/>
 <title>TRIYAMBAKA — The Three-Eyed AI Surveillance System</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{
   --bg:#060a0f;--surface:#0d1117;--surface2:#111820;
@@ -409,24 +410,16 @@ input[type=range]{accent-color:var(--accent);width:100%}
 
           <!-- EMAIL -->
           <div class="panel">
-            <div class="ph"><span class="pt">Email Alert (SMTP)</span></div>
+            <div class="ph"><span class="pt">Email Alert (EmailJS)</span></div>
             <div class="pb">
-              <div class="fg"><label class="fl">Alert Recipient Email</label><input type="email" id="alert-email" placeholder="security@company.com" oninput="saveLocal()"/></div>
-              <div class="fg"><label class="fl">SMTP Host</label><input type="text" id="smtp-host" value="smtp.gmail.com" oninput="saveLocal()"/></div>
-              <div class="fg"><label class="fl">SMTP Port</label><input type="number" id="smtp-port" value="587" oninput="saveLocal()"/></div>
-              <div class="fg"><label class="fl">SMTP Username</label><input type="email" id="smtp-user" placeholder="your@gmail.com" oninput="saveLocal()"/></div>
-              <div class="fg"><label class="fl">SMTP Password / App Password</label><input type="password" id="smtp-pass" placeholder="Gmail App Password" oninput="saveLocal()"/></div>
+              <div class="info-box green" style="margin-bottom:14px">
+                ✅ Using <strong style="color:var(--safe)">EmailJS</strong> — works on any hosting, no SMTP needed!
+              </div>
+              <div class="fg"><label class="fl">Alert Recipient Email</label><input type="email" id="alert-email" placeholder="your@gmail.com" oninput="saveLocal()"/></div>
               <div class="fg"><label class="fl">Camera / Location Label</label><input type="text" id="cam-label" value="Camera 01 — Main Entrance" oninput="saveLocal()"/></div>
               <div class="btn-row">
                 <button class="btn green" onclick="saveSettings()">✓ Save</button>
                 <button class="btn" onclick="testEmail()">✉ Test Email</button>
-              </div>
-              <div class="code-box">
-                <strong style="color:var(--accent)">Gmail App Password:</strong><br/>
-                1. Enable 2FA on Google account<br/>
-                2. Google Account → Security → App Passwords<br/>
-                3. Generate password for "Mail"<br/>
-                4. Use smtp.gmail.com port 587
               </div>
             </div>
           </div>
@@ -563,7 +556,7 @@ function getApiKey() {
 // ─── LOCAL STORAGE ────────────────────────────────
 function loadLocal() {
   const s = JSON.parse(localStorage.getItem('vg') || '{}');
-  const map = {'api-key':'ak','alert-email':'ae','smtp-host':'sh','smtp-port':'sp','smtp-user':'su','smtp-pass':'ss','cam-label':'cl'};
+  const map = {'api-key':'ak','alert-email':'ae','cam-label':'cl'};
   for (const [id, k] of Object.entries(map)) {
     const el = document.getElementById(id);
     if (el && s[k]) el.value = s[k];
@@ -571,8 +564,7 @@ function loadLocal() {
 }
 function saveLocal() {
   localStorage.setItem('vg', JSON.stringify({
-    ak: v('api-key'), ae: v('alert-email'), sh: v('smtp-host'),
-    sp: v('smtp-port'), su: v('smtp-user'), ss: v('smtp-pass'), cl: v('cam-label')
+    ak: v('api-key'), ae: v('alert-email'), cl: v('cam-label')
   }));
 }
 function saveSettings() { saveLocal(); toast('Settings saved ✓', 's'); }
@@ -894,30 +886,68 @@ function stopSiren() {
   if (sirenCtx) { try { sirenCtx.close(); } catch(e){} sirenCtx = null; }
 }
 
-// ─── EMAIL ────────────────────────────────────────
+// ─── EMAILJS CONFIG ───────────────────────────────
+const EMAILJS_PUBLIC_KEY  = 'zMI_e0iR661FpMAI8';
+const EMAILJS_SERVICE_ID  = 'service_crxyglg';
+const EMAILJS_TEMPLATE_ID = 'template_62739hb';
+
+// Initialize EmailJS
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
 function getEmailSettings() {
-  return { alert_email:v('alert-email'), smtp_host:v('smtp-host'), smtp_port:v('smtp-port'),
-           smtp_user:v('smtp-user'), smtp_pass:v('smtp-pass'), location:v('cam-label'),
-           email_enabled: document.getElementById('email-on').checked, cooldown:v('cooldown') };
+  return {
+    alert_email:   v('alert-email'),
+    location:      v('cam-label'),
+    email_enabled: document.getElementById('email-on').checked,
+    cooldown:      v('cooldown')
+  };
 }
+
 async function sendEmailAlert(result) {
   const s = getEmailSettings();
-  if (!s.smtp_user || !s.smtp_pass) { addLog('log-live','Email not configured','warn'); return; }
-  const res = await post('/api/alert/email', { settings:s, result });
-  if (res.ok) toast('Alert email sent ✓', 's');
+  if (!s.email_enabled) return;
+  if (!s.alert_email) { addLog('log-live', 'Alert email not set', 'warn'); return; }
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email:    s.alert_email,
+      name:        'TRIYAMBAKA Alert System',
+      email:       s.alert_email,
+      timestamp:   new Date().toLocaleString(),
+      location:    s.location || 'Camera 01',
+      threat_level: (result.threat_level || 'unknown').toUpperCase(),
+      confidence:  result.confidence || 0,
+      description: result.description || '',
+      details:     result.details || ''
+    });
+    toast('📧 Alert email sent ✓', 's');
+    addLog('log-live', `Email sent to ${s.alert_email}`, 'safe');
+  } catch(e) {
+    toast('Email error: ' + e.text || e.message, 'd');
+    addLog('log-live', 'Email error: ' + (e.text || e.message), 'danger');
+  }
 }
+
 async function testEmail() {
-  const s = getEmailSettings();
-  if (!s.smtp_user || !s.smtp_pass) { toast('Fill SMTP settings first', 'w'); return; }
-  if (!s.alert_email) { toast('Fill Alert Recipient Email first', 'w'); return; }
+  const alertEmail = v('alert-email');
+  if (!alertEmail) { toast('Enter Alert Recipient Email first', 'w'); return; }
   toast('Sending test email...', 'info');
-  const res = await post('/api/alert/email', { settings: s });
-  if (res.ok) {
-    toast('✓ ' + res.msg, 's');
-    addLog('log-full', res.msg, 'safe');
-  } else {
-    toast('✗ ' + res.msg, 'd');
-    addLog('log-full', 'Email error: ' + res.msg, 'danger');
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email:    alertEmail,
+      name:        'TRIYAMBAKA Test',
+      email:       alertEmail,
+      timestamp:   new Date().toLocaleString(),
+      location:    v('cam-label') || 'Camera 01',
+      threat_level: 'TEST',
+      confidence:  99,
+      description: 'Test alert from TRIYAMBAKA',
+      details:     'This is a test email. Your TRIYAMBAKA system is working correctly!'
+    });
+    toast('✓ Test email sent! Check your inbox.', 's');
+    addLog('log-full', 'Test email sent successfully', 'safe');
+  } catch(e) {
+    toast('✗ Email failed: ' + (e.text || e.message), 'd');
+    addLog('log-full', 'Email error: ' + (e.text || e.message), 'danger');
   }
 }
 
@@ -964,3 +994,4 @@ function toast(msg, type = 'info') {
 </script>
 </body>
 </html>
+shivashreenm@ShivaShrees-MacBook-Air ~ % 
