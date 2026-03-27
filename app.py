@@ -127,7 +127,7 @@ DETECTION_PROMPT = (
     '- Be honest about what you see right now, nothing more'
 )
 
-GEMINI_MODEL = "gemini-1.5-flash-lite"
+GEMINI_MODEL = "gemini-1.5-flash"
 
 
 def call_gemini_vision(api_key, image_bytes):
@@ -488,12 +488,23 @@ def api_alert_email():
 
         msg.attach(MIMEText(html, "html"))
 
-        with smtplib.SMTP(settings.get("smtp_host", "smtp.gmail.com"),
-                          int(settings.get("smtp_port", 587))) as srv:
-            srv.ehlo()
-            srv.starttls()
-            srv.login(settings["smtp_user"], settings["smtp_pass"])
-            srv.sendmail(settings["smtp_user"], settings["alert_email"], msg.as_string())
+        port = int(settings.get("smtp_port", 587))
+        host = settings.get("smtp_host", "smtp.gmail.com")
+
+        if port == 465:
+            # SSL connection
+            import ssl
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(host, port, context=context) as srv:
+                srv.login(settings["smtp_user"], settings["smtp_pass"])
+                srv.sendmail(settings["smtp_user"], settings["alert_email"], msg.as_string())
+        else:
+            # TLS connection (587)
+            with smtplib.SMTP(host, port) as srv:
+                srv.ehlo()
+                srv.starttls()
+                srv.login(settings["smtp_user"], settings["smtp_pass"])
+                srv.sendmail(settings["smtp_user"], settings["alert_email"], msg.as_string())
 
         add_log(f"Email sent to {settings['alert_email']}", "safe")
         return jsonify({"ok": True, "msg": f"Email sent to {settings['alert_email']} ✓"})
