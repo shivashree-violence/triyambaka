@@ -127,7 +127,7 @@ DETECTION_PROMPT = (
     '- Be honest about what you see right now, nothing more'
 )
 
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 
 def call_gemini_vision(api_key, image_bytes):
