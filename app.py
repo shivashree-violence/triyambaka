@@ -128,6 +128,7 @@ DETECTION_PROMPT = (
 )
 
 GEMINI_MODEL = "gemini-2.5-flash"
+RESEND_API_KEY  = os.getenv("RESEND_API_KEY", "re_QWW73BDf_KKF2NzajRJ5wknTMAW1MmoTR")
 
 
 def call_gemini_vision(api_key, image_bytes):
