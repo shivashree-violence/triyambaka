@@ -266,9 +266,9 @@ def _fire_alert(result, snapshot, settings):
     add_log(f"🚨 ALERT #{state['alerts_triggered']} — "
             f"{result.get('threat_level','').upper()} — "
             f"{result.get('confidence',0)}% — {result.get('description','')}", "danger")
-    if settings.get("email_enabled") and settings.get("alert_email") and settings.get("smtp_user"):
-        send_email_alert(settings, result, snapshot)
-
+    alert_email = settings.get("alert_email", "")
+    if settings.get("email_enabled") and alert_email:
+        send_email_alert(alert_email, result, settings.get("location", "Camera 01"))
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -424,8 +424,17 @@ def api_auto_stop():
 @app.route("/api/alert/email", methods=["POST"])
 def api_alert_email():
     data     = request.get_json() or {}
-    settings = data.get("settings", {})
-
+    to_email = data.get("to_email") or data.get("settings", {}).get("alert_email", "")
+    location = data.get("location") or data.get("settings", {}).get("location", "Camera 01")
+    if not to_email:
+        return jsonify({"ok": False, "msg": "No email address provided"})
+    result = data.get("result", {
+        "violence_detected": True, "confidence": 99, "threat_level": "test",
+        "categories": ["test_alert"], "description": "Test alert from TRIYAMBAKA",
+        "details": "This is a test email. System working correctly!"
+    })
+    send_email_alert(to_email, result, location)
+    return jsonify({"ok": True, "msg": f"Email sent to {to_email} ✓"})
     # Validate settings
     if not settings.get("smtp_user"):
         return jsonify({"ok": False, "msg": "SMTP username is missing"})
