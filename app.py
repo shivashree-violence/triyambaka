@@ -173,56 +173,36 @@ def resolve_api_key(user_key):
 
 
 # ── Email ──────────────────────────────────────────────────────────────────────
-
-def send_email_alert(settings, result, snapshot=None):
+def send_email_alert(to_email, result, location="Camera 01"):
     def _send():
         try:
-            ts       = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            location = settings.get("location", "Camera 01")
-            msg      = MIMEMultipart("alternative")
-            msg["Subject"] = f"🚨 TRIYAMBAKA ALERT — {result.get('threat_level','').upper()} — {location}"
-            msg["From"]    = settings["smtp_user"]
-            msg["To"]      = settings["alert_email"]
-
-            html = f"""<html><body style="font-family:Arial,sans-serif;background:#0d1117;color:#c8d8e8;padding:24px">
+            timestamp   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            threat      = result.get('threat_level', '').upper()
+            confidence  = result.get('confidence', 0)
+            description = result.get('description', '')
+            details     = result.get('details', '')
+            html = f"""<html><body style="font-family:Arial;background:#0d1117;color:#c8d8e8;padding:24px">
 <div style="max-width:600px;margin:auto;border:1px solid #1c2a38;border-radius:8px;overflow:hidden">
-  <div style="background:#ff2d2d;padding:20px;text-align:center">
-    <h1 style="color:#fff;margin:0;font-size:26px;letter-spacing:3px">⚠ VIOLENCE DETECTED</h1>
-  </div>
-  <div style="padding:24px;background:#111820">
-    <table style="width:100%;border-collapse:collapse">
-      <tr><td style="padding:8px 0;color:#4a6070;width:130px">Timestamp</td><td style="color:#00e5ff">{ts}</td></tr>
-      <tr><td style="padding:8px 0;color:#4a6070">Location</td><td style="color:#fff">{location}</td></tr>
-      <tr><td style="padding:8px 0;color:#4a6070">Threat Level</td><td style="color:#ff2d2d;font-weight:bold;text-transform:uppercase">{result.get('threat_level','')}</td></tr>
-      <tr><td style="padding:8px 0;color:#4a6070">Confidence</td><td style="color:#ff9800">{result.get('confidence',0)}%</td></tr>
-      <tr><td style="padding:8px 0;color:#4a6070">Categories</td><td style="color:#fff">{', '.join(result.get('categories',[]))}</td></tr>
-      <tr><td style="padding:8px 0;color:#4a6070">Description</td><td style="color:#fff">{result.get('description','')}</td></tr>
-      <tr><td style="padding:8px 0;color:#4a6070;vertical-align:top">Details</td><td style="color:#c8d8e8">{result.get('details','')}</td></tr>
-    </table>
-    {"<p style='color:#4a6070;font-size:12px;margin-top:16px'>📎 Snapshot attached.</p>" if snapshot else ""}
-  </div>
-  <div style="background:#080c10;padding:12px;text-align:center;font-size:11px;color:#4a6070">TRIYAMBAKA — The Three-Eyed AI Surveillance System</div>
-</div></body></html>"""
-
-            msg.attach(MIMEText(html, "html"))
-            if snapshot:
-                part = MIMEBase("image", "jpeg")
-                part.set_payload(snapshot)
-                encoders.encode_base64(part)
-                part.add_header("Content-Disposition", "attachment",
-                                filename=f"alert_{ts.replace(' ','_')}.jpg")
-                msg.attach(part)
-
-            with smtplib.SMTP(settings["smtp_host"], int(settings["smtp_port"])) as srv:
-                srv.ehlo(); srv.starttls()
-                srv.login(settings["smtp_user"], settings["smtp_pass"])
-                srv.sendmail(settings["smtp_user"], settings["alert_email"], msg.as_string())
-            add_log(f"Email sent to {settings['alert_email']}", "safe")
+<div style="background:#ff2d2d;padding:20px;text-align:center">
+<h1 style="color:#fff;margin:0">🔱 TRIYAMBAKA ALERT</h1></div>
+<div style="padding:24px;background:#111820">
+<p>Time: {timestamp}</p><p>Location: {location}</p>
+<p>Threat: {threat}</p><p>Confidence: {confidence}%</p>
+<p>Description: {description}</p><p>Details: {details}</p>
+</div></div></body></html>"""
+            requests.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                json={"from": "TRIYAMBAKA <onboarding@resend.dev>",
+                      "to": [to_email],
+                      "subject": f"🔱 TRIYAMBAKA ALERT — {threat} Detected",
+                      "html": html},
+                timeout=15
+            )
+            add_log(f"Email sent to {to_email}", "safe")
         except Exception as e:
             add_log(f"Email error: {e}", "danger")
-
     threading.Thread(target=_send, daemon=True).start()
-
 
 # ── Camera ────────────────────────────────────────────────────────────────────
 
