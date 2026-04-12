@@ -892,7 +892,6 @@ const EMAILJS_SERVICE_ID  = 'service_crxyglg';
 const EMAILJS_TEMPLATE_ID = 'template_4f37n65';
 
 // Initialize EmailJS
-emailjs.init(EMAILJS_PUBLIC_KEY);
 
 function getEmailSettings() {
   return {
@@ -904,53 +903,26 @@ function getEmailSettings() {
 }
 
 async function sendEmailAlert(result) {
-  const s = getEmailSettings();
-  if (!s.email_enabled) return;
-  if (!s.alert_email) { addLog('log-live', 'Alert email not set', 'warn'); return; }
-  try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email:    s.alert_email,
-      name:        'TRIYAMBAKA Alert System',
-      email:       s.alert_email,
-      timestamp:   new Date().toLocaleString(),
-      location:    s.location || 'Camera 01',
-      threat_level: (result.threat_level || 'unknown').toUpperCase(),
-      confidence:  result.confidence || 0,
-      description: result.description || '',
-      details:     result.details || ''
-    });
-    toast('📧 Alert email sent ✓', 's');
-    addLog('log-live', `Email sent to ${s.alert_email}`, 'safe');
-  } catch(e) {
-    toast('Email error: ' + e.text || e.message, 'd');
-    addLog('log-live', 'Email error: ' + (e.text || e.message), 'danger');
-  }
+  const email = v('alert-email');
+  if (!email) return;
+  await post('/api/alert/email', {
+    to_email: email,
+    location: v('cam-label') || 'Camera 01',
+    result: result
+  });
 }
-
+  
 async function testEmail() {
-  const alertEmail = v('alert-email');
-  if (!alertEmail) { toast('Enter Alert Recipient Email first', 'w'); return; }
+  const email = v('alert-email');
+  if (!email) { toast('Enter your email first', 'w'); return; }
   toast('Sending test email...', 'info');
-  try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email:    alertEmail,
-      name:        'TRIYAMBAKA Test',
-      email:       alertEmail,
-      timestamp:   new Date().toLocaleString(),
-      location:    v('cam-label') || 'Camera 01',
-      threat_level: 'TEST',
-      confidence:  99,
-      description: 'Test alert from TRIYAMBAKA',
-      details:     'This is a test email. Your TRIYAMBAKA system is working correctly!'
-    });
-    toast('✓ Test email sent! Check your inbox.', 's');
-    addLog('log-full', 'Test email sent successfully', 'safe');
-  } catch(e) {
-    toast('✗ Email failed: ' + (e.text || e.message), 'd');
-    addLog('log-full', 'Email error: ' + (e.text || e.message), 'danger');
-  }
+  const res = await post('/api/alert/email', {
+    to_email: email,
+    location: v('cam-label') || 'Camera 01'
+  });
+  if (res.ok) toast('✓ Email sent! Check inbox.', 's');
+  else toast('✗ ' + res.msg, 'd');
 }
-
 // ─── STATUS POLLER ────────────────────────────────
 function startPoller() {
   if (pollerTimer) clearInterval(pollerTimer);
