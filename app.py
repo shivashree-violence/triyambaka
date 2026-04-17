@@ -118,26 +118,28 @@ def safe_parse_json(raw):
 
 
 # ── Gemini Vision API ──────────────────────────────────────────────────────────
-
 DETECTION_PROMPT = (
-    'Analyze ONLY what you can SEE RIGHT NOW in this single image. '
-    'Do NOT assume anything from previous frames. Each image is completely independent.\n'
-    'Reply with ONLY a JSON object, no other text, no markdown:\n'
+    'You are a STRICT violence detection system for surveillance cameras. '
+    'Analyze ONLY what is CLEARLY and OBVIOUSLY visible in this image RIGHT NOW.\n\n'
+    'Reply with ONLY a JSON object, no other text:\n'
     '{"violence_detected":false,"confidence":0,"threat_level":"none",'
     '"categories":[],"description":"scene description",'
     '"action_required":false,"details":"assessment"}\n\n'
-    'Fields: violence_detected=true/false, confidence=0-100, '
-    'threat_level=none/low/medium/high/critical, '
-    'categories=subset of [physical_assault,weapon_visible,crowd_aggression,'
-    'property_destruction,threatening_behavior,self_harm,armed_robbery,domestic_violence], '
-    'description=one sentence describing what you SEE NOW, '
-    'action_required=true/false, details=two sentences.\n'
-    'STRICT RULES:\n'
-    '- Only flag violence you can CLEARLY SEE in this exact image\n'
-    '- If the scene looks calm/normal NOW, violence_detected=false even if it was violent before\n'
-    '- A knife held calmly = low threat. A knife being used to attack = high threat\n'
-    '- Normal activity, empty rooms, people sitting/walking = false\n'
-    '- Be honest about what you see right now, nothing more'
+    'STRICT RULES — READ CAREFULLY:\n'
+    '- violence_detected must be TRUE only if you can see ACTIVE, OBVIOUS violence happening\n'
+    '- A person sitting, standing, walking, talking = ALWAYS false\n'
+    '- A person alone in frame doing nothing = ALWAYS false\n'
+    '- Normal office, room, street, home = ALWAYS false\n'
+    '- A knife or weapon simply being held calmly = false (low threat only)\n'
+    '- A knife ACTIVELY being used to attack someone = true\n'
+    '- confidence should be BELOW 30 for any normal scene\n'
+    '- confidence should be ABOVE 70 ONLY for clear, obvious, active violence\n'
+    '- When in doubt, set violence_detected=false\n'
+    '- DO NOT flag normal human movement, gestures, or activities as violence\n'
+    '- DO NOT assume violence from partial views or ambiguous postures\n\n'
+    'Categories (only use if CLEARLY visible):\n'
+    'physical_assault, weapon_visible, crowd_aggression, property_destruction,\n'
+    'threatening_behavior, self_harm, armed_robbery, domestic_violence'
 )
 
 GEMINI_MODEL = "gemini-2.5-flash"
